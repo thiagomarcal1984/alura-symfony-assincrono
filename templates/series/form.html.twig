@@ -1,0 +1,12 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ series is defined ? 'Editar' : 'Nova' }} Série{% endblock %}
+
+{% block body %}
+    {{ form_start(seriesForm) }}
+    {{ form_row(seriesForm.seriesName) }}
+    {{ form_row(seriesForm.seasonsQuantity) }}
+    {{ form_row(seriesForm.episodesPerSeason) }}
+    {{ form_widget(seriesForm.save, {'attr': {'class': 'btn-dark'}}) }}
+    {{ form_end(seriesForm) }}
+{% endblock %}
