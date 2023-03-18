@@ -72,7 +72,7 @@ class SeriesController extends AbstractController
         $user = $this->getUser();
 
         $email = (new TemplatedEmail())
-            ->from('sistema@example.com')
+            // ->from('sistema@example.com') // Consulte o arquivo config\packages\mailer.yaml
             ->to($user->getUserIdentifier())
             ->subject('Nova série criada')
             // Conteúdo sem formatação.

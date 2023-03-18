@@ -149,3 +149,15 @@ Código Twig usado como base para o e-mail:
 </html>
 ```
 A documentação do Symfony dispõe de ajudas para melhorar a formatação dos e-mails (usando CSS ou outras linguagens que facilitam a criação/organização do conteúdo do e-mail), bem como a inserção de anexos (como imagens): https://symfony.com/doc/current/mailer.html 
+
+# Para saber mais: configurações
+
+Assim como qualquer outro componente Symfony, há diversas configurações que podemos fazer no Mailer. Algumas das mais interessantes são as configurações globais que nos permitem, por exemplo, definir um destinatário e/ou recipiente fixo para todos os e-mails naquele ambiente.
+
+Para definir que todos os e-mails serão enviados com o remetente "sistema@example.com" sem precisar chamar o método from todas as vezes, podemos definir a seguinte configuração no `config\packages\mailer.yaml`:
+```YAML
+framework:
+    mailer:
+        envelope:
+            sender: 'sistema@example.com'
+```
