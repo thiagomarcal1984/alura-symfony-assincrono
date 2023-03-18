@@ -386,3 +386,37 @@ Hint: to consume from multiple, use a list of their names, e.g. async, failed
 ```
 
 Geralmente a fila de falha é persistida em um banco de dados em disco mesmo; as demais filas costumam ser colocadas em memória para melhorar a performance.
+
+# Criando uma mensagem
+Como criar um manipulador de mensagens do Symfony: https://symfony.com/doc/current/messenger.html#creating-a-message-handler
+
+O padrão para nomear classes de mensagens é mencionar que o evento ocorreu no passado. Por exemplo: quando a série é criada, nomeamos a classe como `SeriesWasCreated`.
+
+A classe de mensagem nada mais é do que uma classe PHP simples. Da forma como está, a mensagem pode até entrar na fila de mensagens, mas ela não será processada por que não há indicação de quem pode processa-la:
+
+```YAML
+framework:
+    messenger:
+        transports:
+            async:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                # resto do código do transporte.
+        routing:
+            # A rota abaixo permite que SeriesWasCreated entre na fila.
+            # Mas ela não vai ser processada, porque falta quem processe a mensagem.
+            App\Messages\SeriesWasCreated: async
+```
+Código da mensagem `SeriesWasCreated.php`:
+```php
+<?php
+namespace App\Messages;
+
+use App\Entity\Series;
+
+class SeriesWasCreated
+{
+    public function __construct(
+        public readonly Series $series
+    ) {}
+}
+```
