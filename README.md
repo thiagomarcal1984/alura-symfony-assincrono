@@ -486,3 +486,70 @@ class SendNewSeriesEmailHandler
 
 
 Aqui definimos o handler, na aula passada definimos a mensagem. Na próxima aula veremos como enviar a mensagem para ser processada.
+
+# Enviando mensagem
+O envio da mensagem é feito dentro de `SeriesController` por meio de um objeto que implementa a interface `MessageBusInterface`.
+
+Código de `SeriesController`:
+```php
+/* ... Resto do código... */
+use App\Messages\SeriesWasCreated;
+use Symfony\Component\Messenger\MessageBusInterface;
+
+class SeriesController extends AbstractController
+{
+    public function __construct(
+        private SeriesRepository $seriesRepository,
+        private EntityManagerInterface $entityManager,
+        private MessageBusInterface $messenger,
+    ) {}
+    /* ... Resto do código... */
+    
+    #[Route('/series/create', name: 'app_add_series', methods: ['POST'])]
+    public function addSeries(Request $request): Response
+    {
+        /* ... Resto do código... */
+        // O messenger procura os handlers para as mensagens enviadas
+        // como parâmetro para o método dispatch($mensagem).
+        $this->messenger->dispatch(new SeriesWasCreated($series));
+        /* ... Resto do código... */
+    }
+}
+```
+
+Saída do `messenger:consume` após a alteração no código de `SeriesController`:
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:consume -vv
+
+
+ Which transports/receivers do you want to consume?         
+                                                            
+
+Choose which receivers you want to consume messages from in 
+order of priority.
+Hint: to consume from multiple, use a list of their names, e.g. async, failed
+
+ Select receivers to consume: [async]:
+  [0] async
+  [1] failed
+ >
+
+
+                                                            
+ [OK] Consuming messages from transports "async".           
+                                                            
+
+ // The worker will automatically exit once it has received 
+ // a stop signal via the messenger:stop-workers command.   
+
+ // Quit the worker with CONTROL-C.
+
+20:04:54 INFO      [messenger] Received message App\Messages\SeriesWasCreated ["class" => "App\Messages\SeriesWasCreated"]
+20:04:54 INFO      [messenger] Sending message Symfony\Component\Mailer\Messenger\SendEmailMessage with async sender using Symfony\Component\Messenger\Bridge\Doctrine\Transport\DoctrineTransport ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage","alias" => "async","sender" => "Symfony\Component\Messenger\Bridge\Doctrine\Transport\DoctrineTransport"]
+20:04:54 INFO      [messenger] Message App\Messages\SeriesWasCreated handled by App\MessageHandler\SendNewSeriesEmailHandler::__invoke ["class" => "App\Messages\SeriesWasCreated","handler" => "App\MessageHandler\SendNewSeriesEmailHandler::__invoke"]
+20:04:54 INFO      [messenger] App\Messages\SeriesWasCreated was handled successfully (acknowledging to transport). ["class" => "App\Messages\SeriesWasCreated"]
+20:04:54 INFO      [messenger] Received message Symfony\Component\Mailer\Messenger\SendEmailMessage ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+20:04:57 INFO      [messenger] Message Symfony\Component\Mailer\Messenger\SendEmailMessage handled by Symfony\Component\Mailer\Messenger\MessageHandler::__invoke ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage","handler" => "Symfony\Component\Mailer\Messenger\MessageHandler::__invoke"]
+20:04:57 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport). ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+```
+Certifique-se que o daemon/worker que está consumindo as mensagens corresponde ao mesmo código que está rodando no servidor web, senão o servidor web dispara mensagens que o daemon desconhece.

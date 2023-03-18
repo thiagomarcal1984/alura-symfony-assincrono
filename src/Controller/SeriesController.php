@@ -7,12 +7,14 @@ use App\Entity\Episode;
 use App\Entity\Season;
 use App\Entity\Series;
 use App\Form\SeriesType;
+use App\Messages\SeriesWasCreated;
 use App\Repository\SeriesRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
 class SeriesController extends AbstractController
@@ -20,6 +22,7 @@ class SeriesController extends AbstractController
     public function __construct(
         private SeriesRepository $seriesRepository,
         private EntityManagerInterface $entityManager,
+        private MessageBusInterface $messenger,
     ) {}
 
     #[Route('/series', name: 'app_series', methods: ['GET'])]
@@ -60,6 +63,9 @@ class SeriesController extends AbstractController
         }
 
         $this->seriesRepository->add($series, true);
+        // O messenger procura os handlers para as mensagens enviadas
+        // como parâmetro para o método dispatch($mensagem).
+        $this->messenger->dispatch(new SeriesWasCreated($series));
 
         $this->addFlash(
             'success',
