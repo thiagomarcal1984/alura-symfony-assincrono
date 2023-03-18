@@ -9,12 +9,10 @@ use App\Entity\Series;
 use App\Form\SeriesType;
 use App\Repository\SeriesRepository;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Bridge\Twig\Mime\TemplatedEmail;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
 class SeriesController extends AbstractController
@@ -22,7 +20,6 @@ class SeriesController extends AbstractController
     public function __construct(
         private SeriesRepository $seriesRepository,
         private EntityManagerInterface $entityManager,
-        private MailerInterface $mailer,
     ) {}
 
     #[Route('/series', name: 'app_series', methods: ['GET'])]
@@ -69,23 +66,6 @@ class SeriesController extends AbstractController
             "Série \"{$series->getName()}\" adicionada com sucesso"
         );
 
-        $user = $this->getUser();
-
-        $email = (new TemplatedEmail())
-            // ->from('sistema@example.com') // Consulte o arquivo config\packages\mailer.yaml
-            ->to($user->getUserIdentifier())
-            ->subject('Nova série criada')
-            // Conteúdo sem formatação.
-            ->text("Série {$series->getName()} foi criada") 
-            // Conteúdo formatado hard-coded.
-            // ->html("<h1>Série criada</h1><p>Série \"{$series->getName()}\" foi criada</p>"); 
-            // Conteúdo formatado dinâmico.
-            ->htmlTemplate("emails/series-created.html.twig")
-            // Fornece os parâmetros que serão repassados para o template.
-            ->context(compact('series'))
-        ; 
-
-        $this->mailer->send($email);
         return new RedirectResponse('/series');
     }
 
