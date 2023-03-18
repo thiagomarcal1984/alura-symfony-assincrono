@@ -1,5 +1,6 @@
 framework:
     messenger:
+        # Repare que o transport failed foi declarado no grupo transports:
         failure_transport: failed
 
         transports:

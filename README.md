@@ -222,3 +222,167 @@ Comando do console do Symfony para ler as mensagens armazenadas na tabela `messe
 php .\bin\console doctrine:query:sql "SELECT * FROM messenger_messages"
 ```
 Até agora só geramos a fila de mensagens. Na próxima aula veremos como processar essa fila.
+
+# Realizando o processamento
+A CLI do Symfony dispõe dos seguintes comandos voltados para mensageria:
+
+|Comando                    | Função
+|--                         | --
+| messenger:consume         | processa as mensagens.
+| messenger:failed:remove   | remove as mensagens cujo processamento falhou.
+| messenger:failed:retry    | repete o processamento das mensagens cujo processamento falhou.
+| messenger:failed:show     | exibe as mensagens cujo processamento falhou.
+| messenger:setup-transports| configura um transporte.
+| messenger:stop-workers    | pára os workers (os daemons ou serviços de mensageria).
+
+Vamos começar com o comando `messenger:consume` (você pode acrescentar os parâmetros de verbosidade da saída `-v` para normal, `-vv` para verboso ou `-vvv` para debug):
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:consume
+
+
+ Which transports/receivers do you want to consume?         
+                                                            
+
+Choose which receivers you want to consume messages from in 
+order of priority.
+Hint: to consume from multiple, use a list of their names, e.g. async, failed
+
+ Select receivers to consume: [async]:
+  [0] async
+  [1] failed
+ > 0
+
+
+
+ [OK] Consuming messages from transports "async".           
+                                                            
+
+ // The worker will automatically exit once it has received 
+ // a stop signal via the messenger:stop-workers command.   
+
+ // Quit the worker with CONTROL-C.
+
+ // Re-run the command with a -vv option to see logs about  
+ // consumed messages.
+
+```
+
+Exemplo de comando mais verboso (a primeira série entrou na fila antes da execução do comando):
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:consume -vv
+
+
+ Which transports/receivers do you want to consume?
+
+
+Choose which receivers you want to consume messages from in order of priority.
+Hint: to consume from multiple, use a list of their names, e.g. async, failed
+
+ Select receivers to consume: [async]:
+  [0] async
+  [1] failed
+ > 0
+
+
+
+ [OK] Consuming messages from transports "async".
+
+
+ // The worker will automatically exit once it has received a stop signal via the messenger:stop-workers command.
+
+ // Quit the worker with CONTROL-C.
+
+18:44:09 INFO      [messenger] Received message Symfony\Component\Mailer\Messenger\SendEmailMessage ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+18:44:12 INFO      [messenger] Message Symfony\Component\Mailer\Messenger\SendEmailMessage handled by Symfony\Component\Mailer\Messenger\MessageHandler::__invoke ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage","handler" => "Symfony\Component\Mailer\Messenger\MessageHandler::__invoke"]
+18:44:12 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport). ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+
+18:44:40 INFO      [messenger] Received message Symfony\Component\Mailer\Messenger\SendEmailMessage ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+18:44:41 INFO      [messenger] Message Symfony\Component\Mailer\Messenger\SendEmailMessage handled by Symfony\Component\Mailer\Messenger\MessageHandler::__invoke ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage","handler" => "Symfony\Component\Mailer\Messenger\MessageHandler::__invoke"]
+18:44:41 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport). ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
+```
+Por último, o comando executado no modo debug:
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:consume -vvv
+
+
+ Which transports/receivers do you want to consume?
+
+
+Choose which receivers you want to consume messages from in order of priority.
+Hint: to consume from multiple, use a list of their names, e.g. async, failed
+
+ Select receivers to consume: [async]:
+  [0] async
+  [1] failed
+ > 0
+
+
+
+ [OK] Consuming messages from transports "async".
+
+
+ // The worker will automatically exit once it has received a stop signal via the messenger:stop-workers command.
+
+ // Quit the worker with CONTROL-C.
+
+18:48:57 INFO      [messenger] Received message Symfony\Component\Mailer\Messenger\SendEmailMessage
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"
+]
+18:48:57 DEBUG     [php] User Warning: Configure the "curl.cainfo", "openssl.cafile" or "openssl.capath" php.ini setting to enable the CurlHttpClient
+[
+  "exception" => Symfony\Component\ErrorHandler\Exception\SilencedErrorContext^ {
+    +count: 1
+    -severity: E_USER_WARNING
+    trace: {
+      D:\alura\symfony-assincrono\vendor\symfony\http-client\HttpClient.php:57 { …}
+      D:\alura\symfony-assincrono\var\cache\dev\Container1yzM6v5\App_KernelDevDebugContainer.php:1065 {
+        › {
+        ›     $a = \Symfony\Component\HttpClient\HttpClient::create([], 6);
+        › 
+      }
+    }
+  }
+]
+18:48:57 DEBUG     [php] User Notice: Upgrade the curl extension or run "composer require amphp/http-client" to perform async HTTP operations, including full HTTP/2 support
+[
+  "exception" => Symfony\Component\ErrorHandler\Exception\SilencedErrorContext^ {
+    +count: 1
+    -severity: E_USER_NOTICE
+    trace: {
+      D:\alura\symfony-assincrono\vendor\symfony\http-client\HttpClient.php:64 { …}
+      D:\alura\symfony-assincrono\var\cache\dev\Container1yzM6v5\App_KernelDevDebugContainer.php:1065 {
+        › {
+        ›     $a = \Symfony\Component\HttpClient\HttpClient::create([], 6);
+        › 
+      }
+    }
+  }
+]
+18:48:57 DEBUG     [mailer] Email transport "Symfony\Component\Mailer\Transport\Smtp\SmtpTransport" starting
+18:48:59 DEBUG     [mailer] Email transport "Symfony\Component\Mailer\Transport\Smtp\SmtpTransport" started
+18:49:00 INFO      [messenger] Message Symfony\Component\Mailer\Messenger\SendEmailMessage handled by Symfony\Component\Mailer\Messenger\MessageHandler::__invoke
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage",
+  "handler" => "Symfony\Component\Mailer\Messenger\MessageHandler::__invoke"
+]
+18:49:00 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport).
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"
+]
+18:49:04 INFO      [messenger] Received message Symfony\Component\Mailer\Messenger\SendEmailMessage
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"
+]
+18:49:05 INFO      [messenger] Message Symfony\Component\Mailer\Messenger\SendEmailMessage handled by Symfony\Component\Mailer\Messenger\MessageHandler::__invoke
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage",
+  "handler" => "Symfony\Component\Mailer\Messenger\MessageHandler::__invoke"
+]
+18:49:05 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport).
+[
+  "class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"
+]
+```
+
+Geralmente a fila de falha é persistida em um banco de dados em disco mesmo; as demais filas costumam ser colocadas em memória para melhorar a performance.
