@@ -5,6 +5,7 @@ framework:
         transports:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             async:
+                # A variável de ambiente define quem vai armazenar as mensagens da fila.
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     use_notify: true
@@ -12,13 +13,26 @@ framework:
                 retry_strategy:
                     max_retries: 3
                     multiplier: 2
+            # meu_outro_transporte :
+                # resto do código do transporte (use o de async como referência)
+
+            # O Doctrine pode receber filas informando quais mensagens não foram 
+            # processadas com sucesso. Quando executamos as migrations do Doctrine,
+            # a tabela messenger_messages é criada, e é ela que armazena as informações
+            # sobre as mensagens.
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
         routing:
-            # Symfony\Component\Mailer\Messenger\SendEmailMessage: async
+            # App\Message\MinhaMensagem: meu_outro_transporte
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
+
+            # Crie rotas de suas mensagens para os respectivos transportes.
+            # No grupo routing, a chave é a mensagem e o valor é o 
+            # transporte declarado na seção transports
+            # 'App\Message\YourMessage': async
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

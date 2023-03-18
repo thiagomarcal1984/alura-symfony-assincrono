@@ -176,3 +176,49 @@ A estrutura de mensageria é parecida com o padrão de projetos Observer: Um ser
 A lógica da mensageria pode usar a metáfora do correio: se quem produz o pacote (o publisher) o entrega para o destinatário (subscriber), ele perde muito tempo sem produzir. A entrega do pacote/encomenda seria tarefa do message broker/event bus.
 
 Estude sobre microsserviços e as ferramentas de mensageria (RabbitMQ, Apache Kafka etc.).
+
+# Configurando transport
+Mais detalhes sobre os DSN dos transportes de mensageria na documentação: https://symfony.com/doc/current/messenger.html
+
+
+
+No arquivo `config\packages\messenger.yaml` definimos os transports que vão processar certas rotas.
+```YAML
+# config\packages\messenger.yaml
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # https://symfony.com/doc/current/messenger.html#transport-configuration
+            async: # async é o nome de um dos transportes
+                # A variável de ambiente define quem vai armazenar as mensagens da fila.
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                # resto do código do transporte
+            # meu_outro_transporte :
+                # resto do código do transporte (use o de async como referência)
+
+            # O Doctrine pode receber filas informando quais mensagens não foram 
+            # processadas com sucesso. Quando executamos as migrations do Doctrine,
+            # a tabela messenger_messages é criada, e é ela que armazena as informações
+            # sobre as mensagens.
+            failed: 'doctrine://default?queue_name=failed'
+            # sync: 'sync://'
+
+        routing:
+            # App\Message\MinhaMensagem: meu_outro_transporte
+            Symfony\Component\Mailer\Messenger\SendEmailMessage: async
+            Symfony\Component\Notifier\Message\ChatMessage: async
+            Symfony\Component\Notifier\Message\SmsMessage: async
+
+            # Crie rotas de suas mensagens para os respectivos transportes.
+            # No grupo routing, a chave é a mensagem e o valor é o 
+            # transporte declarado na seção transports
+            # 'App\Message\YourMessage': async
+```
+
+Comando do console do Symfony para ler as mensagens armazenadas na tabela `messenger_messages`:
+```SQL
+php .\bin\console doctrine:query:sql "SELECT * FROM messenger_messages"
+```
+Até agora só geramos a fila de mensagens. Na próxima aula veremos como processar essa fila.
