@@ -94,3 +94,58 @@ framework:
 ```
 ## O arquivo .env.local
 Geralmente o arquivo `.env` é usado para ambiente de produção, enquanto `.env.local` é usado para ambiente de desenvolvimento. As variáveis de ambiente são declaradas e lidas pelo Symfony da mesma forma em ambos os arquivos.
+
+# Funcionalidades extra
+Código PHP de `SeriesController`:
+```php
+/* ... Resto do código... */
+use Symfony\Bridge\Twig\Mime\TemplatedEmail;
+
+class SeriesController extends AbstractController
+{
+    /* ... Resto do código... */
+
+    #[Route('/series/create', name: 'app_add_series', methods: ['POST'])]
+    public function addSeries(Request $request): Response
+    {
+        /* ... Resto do código... */
+        
+        // A classe para o email mudou de Email para TemplatedEmail
+        $email = (new TemplatedEmail())
+            ->from('sistema@example.com')
+            ->to($user->getUserIdentifier())
+            ->subject('Nova série criada')
+            // Conteúdo sem formatação.
+            ->text("Série {$series->getName()} foi criada") 
+
+            // Conteúdo formatado dinâmico.
+            ->htmlTemplate("emails/series-created.html.twig")
+            // Fornece os parâmetros que serão repassados para o template.
+            ->context(compact('series'))
+        ; 
+
+        $this->mailer->send($email);
+        return new RedirectResponse('/series');
+    }
+    /* ... Resto do código... */
+}
+```
+
+Código Twig usado como base para o e-mail:
+```HTML
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Série criada</title>
+</head>
+<body>
+    <h1>Série criada</h1>
+    <hr>
+    <p>Série "{{ series.name }}" foi criada.</p>
+</body>
+</html>
+```
+A documentação do Symfony dispõe de ajudas para melhorar a formatação dos e-mails (usando CSS ou outras linguagens que facilitam a criação/organização do conteúdo do e-mail), bem como a inserção de anexos (como imagens): https://symfony.com/doc/current/mailer.html 
