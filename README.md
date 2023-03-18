@@ -161,3 +161,18 @@ framework:
         envelope:
             sender: 'sistema@example.com'
 ```
+
+# Processamento assíncrono e mensageria
+Explicação do Vinicius Dias sobre mensageria: https://www.youtube.com/watch?v=U5h6B7eSiAE 
+
+A mensageria se baseia em troca de mensagem `assíncrona`: usando envio de e-mails de confirmação como exemplo, o cliente não precisa esperar o processamento do e-mail para obter uma resposta de sucesso. Mensagens de erro, se for o caso, podem ser enviadas `após` o processamento do e-mail.
+
+A estrutura de mensageria é parecida com o padrão de projetos Observer: Um servidor (`publisher`) publica uma mensagem/evento no chamado `Message Broker` ou `Event Bus`. O Message Broker/Event Bus processa o que o publisher pediu e depois manda uma mensagem/evento para os clientes (`subscribers`) ou para o publisher em caso de falha. Assim:
+
+1. O publisher manda uma mensagem/evento para o message broker/event bus (e já manda para os subscribers uma mensagem/evento sobre o processamento no message broker/event bus);
+2. O message broker/event bus processa a mensagem/evento do publisher;
+3. Após o processamento, o message broker/event bus manda mensagem/evento para os subscribers (ou para o publisher, em caso de falha).
+
+A lógica da mensageria pode usar a metáfora do correio: se quem produz o pacote (o publisher) o entrega para o destinatário (subscriber), ele perde muito tempo sem produzir. A entrega do pacote/encomenda seria tarefa do message broker/event bus.
+
+Estude sobre microsserviços e as ferramentas de mensageria (RabbitMQ, Apache Kafka etc.).
