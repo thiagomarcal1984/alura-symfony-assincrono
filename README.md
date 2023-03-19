@@ -688,3 +688,31 @@ Saída em `/var/log/<ambiente>.log`:
 [2023-03-19T15:57:43.274520+00:00] app.INFO: A new series was created {"series":{"seriesName":"The Office"}} []
 [2023-03-19T15:57:43.275874+00:00] messenger.INFO: Message App\Messages\SeriesWasCreated handled by App\MessageHandler\LogNewSeriesHandler::__invoke {"class":"App\\Messages\\SeriesWasCreated","handler":"App\\MessageHandler\\LogNewSeriesHandler::__invoke"} []
 ```
+# Corrigindo Form e DTO
+Dois passos:
+1. Refatorar O DTO, renomeando ele de `SeriesCreateFromInput` para `SeriesCreationInputDTO`, e atualizando as referências ao DTO;
+2. Mover as regras de validação da entidade `Series` para o DTO `SeriesCreationInputDTO`, já que o DTO é que será responsável pela validação, não mais a entidade.
+
+Abaixo o código de `SeriesCreationInputDTO`, com as constraints retiradas da entidade `Series`:
+```php
+<?php
+namespace App\DTO;
+
+use Symfony\Component\Validator\Constraints as Assert;
+
+class SeriesCreationInputDTO
+{
+    public function __construct(
+        #[Assert\NotBlank]
+        #[Assert\Length(min: 5)]
+        public string $seriesName = '',
+        
+        #[Assert\Positive] // Deve ser maior que zero.
+        public int $seasonsQuantity = 0,
+        
+        #[Assert\Positive] // Deve ser maior que zero.
+        public int $episodesPerSeason = 0,
+    ) {
+    }
+}
+```
