@@ -853,3 +853,14 @@ Finalmente, o acréscimo da linha correspondente ao campo coverImage no template
     {{ form_end(seriesForm) }}
 {% endblock %}
 ```
+
+# Para saber mais: sem framework
+Antes de realizar qualquer tarefa com um framework é MUITO importante que a gente saiba realizá-la sem ele, para garantir que nós conhecemos a base e sabemos com o que estamos trabalhando.
+
+No seguinte vídeo da Alura+, Vinícius Dias mostra como lidar com upload de arquivos com PHP:
+
+Upload de arquivos com PHP (https://cursos.alura.com.br/extra/alura-mais/upload-de-arquivos-com-php-c205)
+
+Inclusive, falando sobre estudar bem a base antes de estudar um framework, vou deixar uma leitura que pode ser interessante aqui:
+
+Princípios ou Ferramentas - O que estudar (https://dias.dev/2020-04-23-principios-ou-ferramentas-o-que-estudar/)
