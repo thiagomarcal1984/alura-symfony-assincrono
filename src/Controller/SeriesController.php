@@ -62,6 +62,9 @@ class SeriesController extends AbstractController
             $series->addSeason($season);
         }
 
+        // Antes de acrescentar o registro no BD, precisamos
+        // processar o arquivo da capa enviado.
+        
         $this->seriesRepository->add($series, true);
         // O messenger procura os handlers para as mensagens enviadas
         // como parâmetro para o método dispatch($mensagem).

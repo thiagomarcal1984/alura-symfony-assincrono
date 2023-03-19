@@ -27,7 +27,9 @@ class Series
 
     public function __construct(
         #[ORM\Column]
-        private string $name = ''
+        private string $name, // O nome não pode mais ser opcional.
+        #[ORM\Column]
+        private ?string $coverImagePath = null, // O path da imagem pode ser opcional.
     ) {
         $this->seasons = new ArrayCollection();
     }
@@ -75,6 +77,18 @@ class Series
                 $season->setSeries(null);
             }
         }
+
+        return $this;
+    }
+    
+    public function getCoverImagePath(): ?string
+    {
+        return $this->coverImagePath;
+    }
+
+    public function setCoverImagePath(string $coverImagePath): self
+    {
+        $this->coverImagePath = $coverImagePath;
 
         return $this;
     }

@@ -716,3 +716,140 @@ class SeriesCreationInputDTO
     }
 }
 ```
+
+# Solicitando uma imagem
+Uma boa prática é fazer com que os setters retornem o próprio objeto! Isso possibilita o encadeamento de atribuições:
+```php
+    $pessoa
+        ->setName('Thiago')
+        ->setAge(38)
+        ->setAtivo(true)
+    ;
+```
+Novo código para a entidade `Series`:
+```php
+/* ... Resto do código... */
+class Series
+{
+    /* ... Resto do código... */
+    public function __construct(
+        #[ORM\Column]
+        private string $name, // O nome não pode mais ser opcional.
+        #[ORM\Column]
+        private ?string $coverImagePath = null, // O path da imagem pode ser opcional.
+    ) {
+        $this->seasons = new ArrayCollection();
+    }
+
+    /* ... Resto do código... */
+    public function getCoverImagePath(): ?string
+    {
+        return $this->coverImagePath;
+    }
+
+    public function setCoverImagePath(string $coverImagePath): self
+    {
+        $this->coverImagePath = $coverImagePath;
+
+        return $this;
+    }
+}
+```
+Depois de alterar a entidade, precisamos criar a migration:
+```
+php bin\console make:migration
+```
+Arquivos gerados para DB Sqlite costumam ser mais verbosos. Edite o arquivo conforme necessário. O arquivo da migration agora ficou assim:
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace DoctrineMigrations;
+
+use Doctrine\DBAL\Schema\Schema;
+use Doctrine\Migrations\AbstractMigration;
+
+/**
+ * Auto-generated Migration: Please modify to your needs!
+ */
+final class Version20230319163230 extends AbstractMigration
+{
+    public function getDescription(): string
+    {
+        return 'Inclusão do campo da capa da imagem (cover_image_path).';
+    }
+
+    public function up(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE series ADD COLUMN cover_image_path VARCHAR(255) DEFAULT NULL');
+    }
+
+    public function down(Schema $schema): void
+    {
+        $this->addSql('ALTER TABLE series DROP COLUMN cover_image_path');
+    }
+}
+```
+Aplicação da migração:
+```
+php .\bin\console doctrine:migrations:migrate
+```
+
+Alteração em `SeriesCreationInputDTO`:
+```php
+<?php
+namespace App\DTO;
+
+use Symfony\Component\Validator\Constraints as Assert;
+
+class SeriesCreationInputDTO
+{
+    public function __construct(
+        /* ... Resto do código... */
+
+        #[Assert\File] 
+        public string $coverImage = '',
+    ) {
+    }
+}
+```
+Mudanças no formulário `SeriesType`:
+```php
+/* ... Resto do código... */
+use Symfony\Component\Form\Extension\Core\Type\FileType;
+
+class SeriesType extends AbstractType
+{
+    public function buildForm(FormBuilderInterface $builder, array $options): void
+    {
+        $builder
+            /* ... Resto do código... */
+            ->add('coverImage', FileType::class, ['label' => 'Imagem de capa'])
+            ->add('save', SubmitType::class, ['label' => $options['is_edit'] ? 'Editar' : 'Adicionar'])
+            ->setMethod($options['is_edit'] ? 'PATCH' : 'POST')
+        ;
+    }
+
+    /* ... Resto do código... */
+}
+```
+
+Finalmente, o acréscimo da linha correspondente ao campo coverImage no template Twig:
+```HTML
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ series is defined ? 'Editar' : 'Nova' }} Série{% endblock %}
+
+{% block body %}
+    {{ form_start(seriesForm) }}
+    {{ form_row(seriesForm.seriesName) }}
+    {{ form_row(seriesForm.seasonsQuantity) }}
+    {{ form_row(seriesForm.episodesPerSeason) }}
+    
+    {{ form_row(seriesForm.coverImage) }}
+    
+    {{ form_widget(seriesForm.save, {'attr': {'class': 'btn-dark'}}) }}
+    {{ form_end(seriesForm) }}
+{% endblock %}
+```

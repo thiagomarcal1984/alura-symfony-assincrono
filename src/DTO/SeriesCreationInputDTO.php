@@ -15,6 +15,9 @@ class SeriesCreationInputDTO
         
         #[Assert\Positive] // Deve ser maior que zero.
         public int $episodesPerSeason = 0,
+        
+        #[Assert\File] 
+        public string $coverImage = '',
     ) {
     }
 }
