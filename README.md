@@ -553,3 +553,138 @@ Hint: to consume from multiple, use a list of their names, e.g. async, failed
 20:04:57 INFO      [messenger] Symfony\Component\Mailer\Messenger\SendEmailMessage was handled successfully (acknowledging to transport). ["class" => "Symfony\Component\Mailer\Messenger\SendEmailMessage"]
 ```
 Certifique-se que o daemon/worker que está consumindo as mensagens corresponde ao mesmo código que está rodando no servidor web, senão o servidor web dispara mensagens que o daemon desconhece.
+
+# Para saber mais: produção
+Como garantir que o daemon de consumo da fila de mensagens sempre vai ficar de pé? Veja na documentação:
+
+* Messenger: Sync & Queued Message Handling - Deploying to Production: https://symfony.com/doc/current/messenger#deploying-to-production
+* Supervisor: https://symfony.com/doc/current/messenger#messenger-supervisor
+* Systemd no Linux: https://symfony.com/doc/current/messenger#messenger-systemd
+
+# Analisando falhas e fazendo log
+
+Exibindo com a CLI as mensagens cujo processamento falharam:
+
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:failed:show
+
+There is 1 message pending in the failure transport.
+ ---- ------------------------------- --------------------- ---------------------------------------------------------
+  Id   Class                           Failed at             Error
+       
+ ---- ------------------------------- --------------------- ---------------------------------------------------------
+  13   App\Messages\SeriesWasCreated   2023-03-19 15:17:57   No handler for message "App\Messages\SeriesWasCreated".
+ ---- ------------------------------- --------------------- ---------------------------------------------------------
+
+ // Run messenger:failed:show {id} --transport=failed -vv to see message details.
+ ```
+
+Se você informar o ID da mensagem para o comando `messenger:failed:show`, você obterá informações mais detalhadas da mensagem cujo ID foi informado:
+```
+PS D:\alura\symfony-assincrono> php .\bin\console messenger:failed:show 13
+There is 1 message pending in the failure transport.
+
+Failed Message Details
+======================
+
+ ------------- -------------------------------------------------------------------- 
+  Class         App\Messages\SeriesWasCreated
+  Message Id    13
+  Failed at     2023-03-19 15:17:57
+  Error         No handler for message "App\Messages\SeriesWasCreated".
+  Error Code    0
+  Error Class   Symfony\Component\Messenger\Exception\NoHandlerForMessageException
+  Transport     async
+ ------------- --------------------------------------------------------------------
+
+ Message history:
+  * Message failed at 2023-03-19 15:17:50 and was redelivered
+  * Message failed at 2023-03-19 15:17:51 and was redelivered
+  * Message failed at 2023-03-19 15:17:53 and was redelivered
+  * Message failed at 2023-03-19 15:17:57 and was redelivered
+
+ Re-run command with -vv to see more message & error details.
+
+ Run messenger:failed:retry 13 --transport=failed to retry this message.
+ Run messenger:failed:remove 13 --transport=failed to delete it.
+ ```
+
+ Ao executar o comando `messenger:failed:retry <id>`, a mensagem não é imediatamente reprocessada. Ela é reenviada para fila do message broker/event bus:
+ ```
+ PS D:\alura\symfony-assincrono> php .\bin\console messenger:failed:retry 13 
+
+ // Quit this command with CONTROL-C.
+
+ // Re-run the command with a -vv option to see logs about consumed messages.
+
+There is 1 message pending in the failure transport.
+To retry all the messages, run messenger:consume failed
+
+Failed Message Details
+======================
+
+ ------------- -------------------------------------------------------------------- 
+  Class         App\Messages\SeriesWasCreated
+  Message Id    13
+  Failed at     2023-03-19 15:17:57
+  Error         No handler for message "App\Messages\SeriesWasCreated".
+  Error Code    0
+  Error Class   Symfony\Component\Messenger\Exception\NoHandlerForMessageException
+  Transport     async
+ ------------- --------------------------------------------------------------------
+
+ Message history:
+  * Message failed at 2023-03-19 15:17:50 and was redelivered
+  * Message failed at 2023-03-19 15:17:51 and was redelivered
+  * Message failed at 2023-03-19 15:17:57 and was redelivered
+
+ Re-run command with -vv to see more message & error details.
+
+ Do you want to retry (yes) or delete this message (no)? (yes/no) [yes]:
+ >
+
+ [OK] All done!                                                                                                
+```
+
+ Podemos indicar opcionalmente de qual transporte buscaremos a mensagem que vamos repetir o processamento, com o parâmetro `--transport=nome_do_transporte`.
+
+ Código do novo MessageHandler para registrar no log do Symfony (`var/log/<ambiente>.log`) a inserção de uma nova série:
+
+ ```php
+ <?php
+namespace App\MessageHandler;
+
+use App\Messages\SeriesWasCreated;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+#[AsMessageHandler]
+class LogNewSeriesHandler
+{
+    public function __construct(
+        private LoggerInterface $logger,
+    ) {}
+
+    public function __invoke(SeriesWasCreated $message)
+    {
+        $this->logger->info("A new series was created", [ 
+            "series" => [
+                "seriesName" => $message->series->getName()
+            ] 
+        ]);
+    }
+}
+ ```
+
+Saída em `/var/log/<ambiente>.log`:
+
+```
+[2023-03-19T15:57:43.219726+00:00] doctrine.DEBUG: Beginning transaction [] []
+[2023-03-19T15:57:43.220348+00:00] doctrine.DEBUG: Executing statement: SELECT m.* FROM messenger_messages m WHERE (m.delivered_at is null OR m.delivered_at < ?) AND (m.available_at <= ?) AND (m.queue_name = ?) ORDER BY available_at ASC LIMIT 1  (parameters: array{"1":"2023-03-19 14:57:43","2":"2023-03-19 15:57:43","3":"default"}, types: array{"1":2,"2":2,"3":2}) {"sql":"SELECT m.* FROM messenger_messages m WHERE (m.delivered_at is null OR m.delivered_at < ?) AND (m.available_at <= ?) AND (m.queue_name = ?) ORDER BY available_at ASC LIMIT 1 ","params":{"1":"2023-03-19 14:57:43","2":"2023-03-19 15:57:43","3":"default"},"types":{"1":2,"2":2,"3":2}} []
+[2023-03-19T15:57:43.221216+00:00] doctrine.DEBUG: Executing statement: UPDATE messenger_messages SET delivered_at = ? WHERE id = ? (parameters: array{"1":"2023-03-19 15:57:43","2":19}, types: array{"1":2,"2":2}) {"sql":"UPDATE messenger_messages SET delivered_at = ? WHERE id = ?","params":{"1":"2023-03-19 15:57:43","2":19},"types":{"1":2,"2":2}} []
+[2023-03-19T15:57:43.235236+00:00] doctrine.DEBUG: Committing transaction [] []
+[2023-03-19T15:57:43.266400+00:00] messenger.INFO: Received message App\Messages\SeriesWasCreated {"class":"App\\Messages\\SeriesWasCreated"} []
+[2023-03-19T15:57:43.272633+00:00] doctrine.INFO: Connecting with parameters array{"url":"<redacted>","driver":"pdo_sqlite","host":"localhost","port":null,"user":"root","password":null,"driverOptions":[],"defaultTableOptions":[],"path":"D:\\alura\\symfony-assincrono/var/data.db","charset":"utf8"} {"params":{"url":"<redacted>","driver":"pdo_sqlite","host":"localhost","port":null,"user":"root","password":null,"driverOptions":[],"defaultTableOptions":[],"path":"D:\\alura\\symfony-assincrono/var/data.db","charset":"utf8"}} []
+[2023-03-19T15:57:43.274520+00:00] app.INFO: A new series was created {"series":{"seriesName":"The Office"}} []
+[2023-03-19T15:57:43.275874+00:00] messenger.INFO: Message App\Messages\SeriesWasCreated handled by App\MessageHandler\LogNewSeriesHandler::__invoke {"class":"App\\Messages\\SeriesWasCreated","handler":"App\\MessageHandler\\LogNewSeriesHandler::__invoke"} []
+```
