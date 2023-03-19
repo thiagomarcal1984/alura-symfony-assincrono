@@ -4,6 +4,13 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
+    # Aqui podemos definir configurações que podem ser invocadas
+    # nos CONTROLLERS pelo método getParameter('nomeParm').
+    # Para invocar os parâmetros de fora dos controllers, use a classe injetável
+    # Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface,
+    # método $this->get('nome_do_parametro').
+
+    cover_image_directory: '%kernel.project_dir%/public/uploads/covers'
 
 services:
     # default configuration for services in *this* file

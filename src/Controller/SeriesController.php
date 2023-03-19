@@ -16,6 +16,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\String\Slugger\SluggerInterface;
 
 class SeriesController extends AbstractController
 {
@@ -23,6 +25,8 @@ class SeriesController extends AbstractController
         private SeriesRepository $seriesRepository,
         private EntityManagerInterface $entityManager,
         private MessageBusInterface $messenger,
+        // Converte texto para caracteres mais seguros para URLs.
+        private SluggerInterface $slugger, 
     ) {}
 
     #[Route('/series', name: 'app_series', methods: ['GET'])]
@@ -49,6 +53,39 @@ class SeriesController extends AbstractController
         $seriesForm = $this->createForm(SeriesType::class, $input)
             ->handleRequest($request);
 
+        /** @var UploadedFile $uploadedCoverImage */
+        $uploadedCoverImage = $seriesForm->get('coverImage')->getData();
+        if ($uploadedCoverImage) {
+            $originalFilename = pathinfo( // Função nativa do PHP.
+                // Busca nome original...
+                $uploadedCoverImage->getClientOriginalName(), 
+                // ... e retorna só o nome do arquivo sem extensão.
+                PATHINFO_FILENAME
+            );
+            
+            // Usa o slugger para usar caracteres seguros no nome do arquivo.
+            $safeFilename = $this->slugger->slug($originalFilename);
+            
+            // Define um nome único de arquivo que evite sobre-escrita.
+            $newFilename = $safeFilename . 
+                // uniqid é uma função do PHP para gerar IDs únicas.
+                '-' . uniqid() . 
+                // Lê o conteúdo do arquivo para adivinhar a extensão (mais seguro).
+                '.' . $uploadedCoverImage->guessExtension(); 
+                
+            // Resultado: arquivo-641775c4977c7.jpg
+            $input->coverImage = $newFilename;
+        }
+
+        $uploadedCoverImage->move(
+            // Diretório de destino. Parâmetro obtido do
+            // arquivo config/services.yaml
+            $this->getParameter('cover_image_directory'), 
+            // Nome do arquivo de destino. 
+            // Se omitido, o nome original é passado como 2o parm.
+            $newFilename, 
+        );
+
         if (!$seriesForm->isValid()) {
             return $this->renderForm('series/form.html.twig', compact('seriesForm'));
         }
@@ -65,7 +102,7 @@ class SeriesController extends AbstractController
         // Antes de acrescentar o registro no BD, precisamos
         // processar o arquivo da capa enviado.
         
-        $this->seriesRepository->add($series, true);
+        $this->seriesRepository->add($input, true);
         // O messenger procura os handlers para as mensagens enviadas
         // como parâmetro para o método dispatch($mensagem).
         $this->messenger->dispatch(new SeriesWasCreated($series));

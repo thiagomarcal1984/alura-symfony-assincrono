@@ -1,6 +1,7 @@
 <?php
 namespace App\DTO;
 
+// use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Validator\Constraints as Assert;
 
 class SeriesCreationInputDTO
@@ -17,7 +18,8 @@ class SeriesCreationInputDTO
         public int $episodesPerSeason = 0,
         
         #[Assert\File] 
-        public string $coverImage = '',
+        // public ?File $coverImage = null,
+        public ?string $coverImage = null,
     ) {
     }
 }

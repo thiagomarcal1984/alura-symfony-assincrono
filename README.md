@@ -864,3 +864,181 @@ Upload de arquivos com PHP (https://cursos.alura.com.br/extra/alura-mais/upload-
 Inclusive, falando sobre estudar bem a base antes de estudar um framework, vou deixar uma leitura que pode ser interessante aqui:
 
 Princípios ou Ferramentas - O que estudar (https://dias.dev/2020-04-23-principios-ou-ferramentas-o-que-estudar/)
+
+# Manipulando upload
+Duas abordagens para guardar arquivos na entidade ou no DTO: 
+1. usando strings; ou
+2. usando um tipo próprio do framework (as classes `File` ou `UploadedFile` do namespace `Symfony\Component\HttpFoundation\File\`)
+
+A segunda abordagem não é recomendada porque cria uma dependência entre o código do domínio e o framework. Quanto mais livre o código for do framework, melhor para a sua compatibilidade.
+
+Veja o código `SeriesCreationInputDTO`:
+```php
+<?php
+namespace App\DTO;
+
+// use Symfony\Component\HttpFoundation\File\File;
+use Symfony\Component\Validator\Constraints as Assert;
+
+class SeriesCreationInputDTO
+{
+    public function __construct(
+        /* ... Resto do código... */
+        
+        #[Assert\File] 
+        // public ?File $coverImage = null,
+        public ?string $coverImage = null,
+    ) {
+    }
+}
+```
+
+A abordagem para mover o arquivo para um outro local é:
+1. obter o caminho temporário do arquivo (isso pode ser feito usando a variável `$_FILES`, ou mesmo as classes `File` ou `UploadedFile`; e 
+2. usando a função `move_uploaded_file($origem, $destino)` para mover efetivamente o arquivo.
+
+A classe `Symfony\Component\HttpFoundation\File\{File, UploadedFile}` contém o método `move`, que move o arquivo com o nome e diretório indicados nele.
+
+## Modificações em `SeriesController`
+```php
+/* ... Resto do código... */
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\String\Slugger\SluggerInterface;
+
+class SeriesController extends AbstractController
+{
+    public function __construct(
+        private SeriesRepository $seriesRepository,
+        private EntityManagerInterface $entityManager,
+        private MessageBusInterface $messenger,
+        // Converte texto para caracteres mais seguros para URLs.
+        private SluggerInterface $slugger, 
+    ) {}
+
+    /* ... Resto do código... */
+    #[Route('/series/create', name: 'app_add_series', methods: ['POST'])]
+    public function addSeries(Request $request): Response
+    {
+        $input = new SeriesCreationInputDTO();
+        $seriesForm = $this->createForm(SeriesType::class, $input)
+            ->handleRequest($request);
+
+        /** @var UploadedFile $uploadedCoverImage */
+        $uploadedCoverImage = $seriesForm->get('coverImage')->getData();
+        if ($uploadedCoverImage) {
+            $originalFilename = pathinfo( // Função nativa do PHP.
+                // Busca nome original...
+                $uploadedCoverImage->getClientOriginalName(), 
+                // ... e retorna só o nome do arquivo sem extensão.
+                PATHINFO_FILENAME
+            );
+            
+            // Usa o slugger para usar caracteres seguros no nome do arquivo.
+            $safeFilename = $this->slugger->slug($originalFilename);
+            
+            // Define um nome único de arquivo que evite sobre-escrita.
+            $newFilename = $safeFilename . 
+                // uniqid é uma função do PHP para gerar IDs únicas.
+                '-' . uniqid() . 
+                // Lê o conteúdo do arquivo para adivinhar a extensão (mais seguro).
+                '.' . $uploadedCoverImage->guessExtension(); 
+                
+            // Resultado: arquivo-641775c4977c7.jpg
+            $input->coverImage = $newFilename;
+        }
+
+        $uploadedCoverImage->move(
+            // Diretório de destino. Parâmetro obtido do
+            // arquivo config/services.yaml
+            $this->getParameter('cover_image_directory'), 
+            // Nome do arquivo de destino. 
+            // Se omitido, o nome original é passado como 2o parm.
+            $newFilename, 
+        );
+
+        /* ... Resto do código... */
+        $this->seriesRepository->add($input, true);
+        /* ... Resto do código... */
+    }
+    /* ... Resto do código... */
+}
+```
+## Modificações no repositório
+O repositório `SeriesRepository` precisou ser alterado no método `add`, para permitir a inclusão do DTO:
+```php
+/* ... Resto do código... */
+class SeriesRepository extends ServiceEntityRepository
+{
+    /* ... Resto do código... */
+
+    // Assinatura antiga:
+    // public function add(Series $entity, bool $flush = false): void
+    // Assinatura nova:
+    public function add(SeriesCreationInputDTO $input, bool $flush = false): void
+    {
+        $series = new Series($input->seriesName, $input->coverImage);
+        $this->getEntityManager()->persist($series);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+    /* ... Resto do código... */
+}
+```
+
+## Comentários sobre a opção mapped nos campos dos formulários do Symfony
+A opção `mapped` marcada como false signficica que o campo não está associado a qualquer propriedade da entidade. No exemplo, vamos desassociar o campo `coverImage` da `data_class` configurada para o formluário, ou seja, `SeriesCreationInputDTO`.
+
+Código de `SeriesType`:
+```php
+/* ... Resto do código... */
+class SeriesType extends AbstractType
+{
+    public function buildForm(FormBuilderInterface $builder, array $options): void
+    {
+        $builder
+            /* ... Resto do código... */
+            
+            // A opção 'mapped'=>false significa que o campo coverImage da entidade não será
+            // preenchido (coverImage sempre vai ser nulo). Não é o DTO (data_class) que vai 
+            // controlar o campo, mas sim o controller.
+            
+            ->add('coverImage', FileType::class, ['label' => 'Imagem de capa', 'mapped' => false])
+            /* ... Resto do código... */
+        ;
+    }
+
+    public function configureOptions(OptionsResolver $resolver): void
+    {
+        $resolver->setDefaults([
+            // Classe para a qual ocorre o mapeamento dos campos para preenchimento.
+            'data_class' => SeriesCreationInputDTO::class, 
+            'is_edit' => false,
+        ]);
+
+        /* ... Resto do código... */
+    }
+}
+```
+## O arquivo services.yaml
+É possível obter parâmetros usados reiteradas vezes na aplicaçã que independem da máquina onde a aplicação está instalada. Basta usar o arquivo `services.yaml`.
+
+```YAML
+parameters:
+    diretorio1 : '/diretorio1'
+    diretorio2 : '/diretorio2'
+    diretorio3 : '/diretorio3'
+```
+Para ler os parâmetros de `services.yaml`, podemos usar:
+1. A partir dos controllers, usamos o método `$this->getParameter('nome_do_parametro')`;
+2. Para invocar os parâmetros de fora dos controllers, use método `$this->get('nome_do_parametro')` da classe injetável `Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface`.
+
+## O caminho padrão do projeto 
+O path `%kernel.project_dir%` é a curinga para a raiz do projeto. Repare que esse caminho foi usado no arquivo de configuração `services.yaml` para definir o diretório para onde vão as capas das séries:
+
+```YAML
+# config/services.yaml
+parameters:
+    cover_image_directory: '%kernel.project_dir%/public/uploads/covers'
+```

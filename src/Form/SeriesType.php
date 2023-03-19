@@ -18,7 +18,10 @@ class SeriesType extends AbstractType
             ->add('seriesName', options: ['label' => 'Nome:'])
             ->add('seasonsQuantity', NumberType::class, options: ['label' => 'Qtd Temporadas:'])
             ->add('episodesPerSeason', NumberType::class, options: ['label' => 'Ep por Temporada:'])
-            ->add('coverImage', FileType::class, ['label' => 'Imagem de capa'])
+            // A opção 'mapped'=>false significa que o campo coverImage da entidade não será
+            // preenchido (coverImage sempre vai ser nulo). Não é o DTO (data_class) que vai 
+            // controlar o campo, mas sim o controller.
+            ->add('coverImage', FileType::class, ['label' => 'Imagem de capa', 'mapped' => false])
             ->add('save', SubmitType::class, ['label' => $options['is_edit'] ? 'Editar' : 'Adicionar'])
             ->setMethod($options['is_edit'] ? 'PATCH' : 'POST')
         ;
