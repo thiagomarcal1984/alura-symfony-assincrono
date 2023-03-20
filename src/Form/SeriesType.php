@@ -9,6 +9,7 @@ use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints\File;
 
 class SeriesType extends AbstractType
 {
@@ -21,7 +22,20 @@ class SeriesType extends AbstractType
             // A opção 'mapped'=>false significa que o campo coverImage da entidade não será
             // preenchido (coverImage sempre vai ser nulo). Não é o DTO (data_class) que vai 
             // controlar o campo, mas sim o controller.
-            ->add('coverImage', FileType::class, ['label' => 'Imagem de capa', 'mapped' => false])
+            ->add(
+                'coverImage', 
+                FileType::class, 
+                [
+                    'label' => 'Imagem de capa',
+                    'mapped' => false,
+                    'required' => false,
+
+                    // As constraints aplicáveis ao DTO/Entidades entrariam aqui.
+                    'constraints' => [ 
+                        new File(mimeTypes: 'image/*'),
+                    ],
+                ]
+            )
             ->add('save', SubmitType::class, ['label' => $options['is_edit'] ? 'Editar' : 'Adicionar'])
             ->setMethod($options['is_edit'] ? 'PATCH' : 'POST')
         ;

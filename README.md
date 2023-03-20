@@ -957,31 +957,9 @@ class SeriesController extends AbstractController
         );
 
         /* ... Resto do código... */
-        $this->seriesRepository->add($input, true);
+        $series->setCoverImagePath($newFilename);
+        $this->seriesRepository->add($series, true);
         /* ... Resto do código... */
-    }
-    /* ... Resto do código... */
-}
-```
-## Modificações no repositório
-O repositório `SeriesRepository` precisou ser alterado no método `add`, para permitir a inclusão do DTO:
-```php
-/* ... Resto do código... */
-class SeriesRepository extends ServiceEntityRepository
-{
-    /* ... Resto do código... */
-
-    // Assinatura antiga:
-    // public function add(Series $entity, bool $flush = false): void
-    // Assinatura nova:
-    public function add(SeriesCreationInputDTO $input, bool $flush = false): void
-    {
-        $series = new Series($input->seriesName, $input->coverImage);
-        $this->getEntityManager()->persist($series);
-
-        if ($flush) {
-            $this->getEntityManager()->flush();
-        }
     }
     /* ... Resto do código... */
 }
@@ -1042,3 +1020,76 @@ O path `%kernel.project_dir%` é a curinga para a raiz do projeto. Repare que es
 parameters:
     cover_image_directory: '%kernel.project_dir%/public/uploads/covers'
 ```
+
+# Exibindo a capa
+
+A validação do tipo de arquivo poderia ser feita na classe `SeriesCreationInputDTO`:
+```php
+/* ... Resto do código... */
+use Symfony\Component\Validator\Constraints as Assert;
+
+class SeriesCreationInputDTO
+{
+    public function __construct(
+        /* ... Resto do código... */
+        #[Assert\File(mimeTypes: 'image/*')] 
+        // public ?File $coverImage = null,
+        public ?string $coverImage = null,
+    ) {
+    }
+}
+```
+A validação de Assert\File funcionaria **se** o formulário `SeriesType` permitisse o mapeamento. Neste caso, somente a validação em `SeriesType` funcionaria:
+
+```php
+/* ... Resto do código... */
+use Symfony\Component\Validator\Constraints\File;
+
+class SeriesType extends AbstractType
+{
+    public function buildForm(FormBuilderInterface $builder, array $options): void
+    {
+        $builder
+            /* ... Resto do código... */
+
+            // A opção 'mapped'=>false significa que o campo coverImage da entidade não será
+            // preenchido (coverImage sempre vai ser nulo). Não é o DTO (data_class) que vai 
+            // controlar o campo, mas sim o controller.
+            ->add(
+                'coverImage', 
+                FileType::class, 
+                [
+                    'label' => 'Imagem de capa',
+                    'mapped' => false,
+                    'required' => false,
+
+                    // As constraints aplicáveis ao DTO/Entidades entrariam aqui.
+                    'constraints' => [ 
+                        new File(mimeTypes: 'image/*'),
+                    ],
+                ]
+            )
+            ->add('save', SubmitType::class, ['label' => $options['is_edit'] ? 'Editar' : 'Adicionar'])
+            ->setMethod($options['is_edit'] ? 'PATCH' : 'POST')
+        ;
+    }
+    /* ... Resto do código... */
+}
+```
+Exibição da imagem no template Twig:
+```HTML
+{# Resto do código #}
+{% block body %}
+<div class="text-center">
+    <img 
+        src="{{ asset('uploads/covers/') ~ series.coverImagePath }}" 
+        alt="Imagem de capa da série {{ series.name }}" 
+        class="image-fluid mb-3" 
+    />
+</div>
+{# Resto do código #}
+{% endblock %}
+```
+Repare que no Twig o operador de concatenação é o til (`~`).
+
+A função `asset` toma como referência a pasta public do projeto.

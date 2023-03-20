@@ -53,6 +53,10 @@ class SeriesController extends AbstractController
         $seriesForm = $this->createForm(SeriesType::class, $input)
             ->handleRequest($request);
 
+        if (!$seriesForm->isValid()) {
+            return $this->renderForm('series/form.html.twig', compact('seriesForm'));
+        }
+
         /** @var UploadedFile $uploadedCoverImage */
         $uploadedCoverImage = $seriesForm->get('coverImage')->getData();
         if ($uploadedCoverImage) {
@@ -85,11 +89,6 @@ class SeriesController extends AbstractController
             // Se omitido, o nome original é passado como 2o parm.
             $newFilename, 
         );
-
-        if (!$seriesForm->isValid()) {
-            return $this->renderForm('series/form.html.twig', compact('seriesForm'));
-        }
-
         $series = new Series($input->seriesName);
         for ($i = 1; $i <= $input->seasonsQuantity; $i++) {
             $season = new Season($i);
@@ -99,10 +98,9 @@ class SeriesController extends AbstractController
             $series->addSeason($season);
         }
 
-        // Antes de acrescentar o registro no BD, precisamos
-        // processar o arquivo da capa enviado.
-        
-        $this->seriesRepository->add($input, true);
+        $series->setCoverImagePath($newFilename);
+        $this->seriesRepository->add($series, true);
+
         // O messenger procura os handlers para as mensagens enviadas
         // como parâmetro para o método dispatch($mensagem).
         $this->messenger->dispatch(new SeriesWasCreated($series));

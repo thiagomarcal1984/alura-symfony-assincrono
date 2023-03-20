@@ -17,7 +17,11 @@ class SeriesCreationInputDTO
         #[Assert\Positive] // Deve ser maior que zero.
         public int $episodesPerSeason = 0,
         
-        #[Assert\File] 
+        // A validação de Assert\File funcionaria se o formulário
+        // SeriesType não permitisse o mapeamento. Neste caso,
+        // somente a validação em SeriesType funcionaria.
+        
+        // #[Assert\File(mimeTypes: 'image/*')] 
         // public ?File $coverImage = null,
         public ?string $coverImage = null,
     ) {
