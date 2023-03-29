@@ -19,7 +19,7 @@
                     <a href="{{ path('app_edit_series_form', {series: series.id}) }}" class="btn btn-sm btn-primary me-2">
                         E
                     </a>
-                    <form method="post" action="{{ path('app_delete_series', {id: series.id}) }}">
+                    <form method="post" action="{{ path('app_delete_series', {series: series.id}) }}">
                         <input type="hidden" name="_method" value="DELETE">
 
                         <button class="btn btn-sm btn-danger">

@@ -1093,3 +1093,117 @@ Exibição da imagem no template Twig:
 Repare que no Twig o operador de concatenação é o til (`~`).
 
 A função `asset` toma como referência a pasta public do projeto.
+
+# Excluindo o arquivo
+Primeiro: A criação da mensagem para a exclusão da imagem de capa após a exclusão no banco de dados consiste numa classe simples que recebe uma `Series` como parâmetro do construtor:
+
+```php
+<?php
+namespace App\Messages;
+
+use App\Entity\Series;
+
+class SeriesWasDeleted
+{
+    public function __construct(
+        public readonly Series $series
+    ) {}
+}
+```
+
+Segundo: O manipulador da mensagem deve ter a anotação `AsMessageHandler` e a função `invoke` definida com o parâmetro correspondente à mensagem que se deseja processar (no caso, a `SeriesWasDeleted`):
+```php
+<?php
+namespace App\MessageHandler;
+
+use App\Messages\SeriesWasDeleted;
+use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
+use Symfony\Component\Messenger\Attribute\AsMessageHandler;
+
+#[AsMessageHandler]
+class DeleteSeriesImageHandler
+{
+
+    public function __construct(
+        private ParameterBagInterface $parameterBag,
+    ) {}
+    
+    /** A função __invoke permite que o objeto seja executado como função.
+    * Exemplo: 
+    * $objeto = new SendNewSeriesEmailHandler();
+    * // Executar a função __invoke da classe SendNewSeriesEmailHandler().
+    * $objeto(); 
+    **/
+    public function __invoke(SeriesWasDeleted $message)
+    {
+        $coverImagePath = $message->series->getCoverImagePath();
+        
+        $path = ($this->parameterBag->get('cover_image_directory') 
+            . DIRECTORY_SEPARATOR
+            . $coverImagePath
+        );
+
+        $path = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $path);
+
+        // unlink é o comando do PHP para apagar um arquivo.
+        unlink($path);
+    }
+}
+```
+Terceiro: editamos o arquivo `config/packages/messenger.yaml` para definir qual transporte vai consumir as mensagens disparadas:
+```yaml
+framework:
+    messenger:
+        # Resto do código...
+
+        transports:
+            async:
+                # Resto do código...
+
+            # Resto do código...
+        routing:
+            App\Messages\SeriesWasDeleted: async
+            # Resto do código...
+```
+
+Quarto: Editamos `SeriesController` para que as mensagens sejam disparadas ao excluirmos uma série do banco de dados:
+```php
+/* ... Resto do código... */
+
+class SeriesController extends AbstractController
+{
+    /* ... Resto do código... */
+    #[Route(
+        '/series/delete/{series}',
+        name: 'app_delete_series',
+        methods: ['DELETE'],
+    )]
+    public function deleteSeries(Series $series, Request $request): Response
+    {
+        $this->seriesRepository->remove($series, true);
+
+        // O messenger procura os handlers para as mensagens enviadas
+        // como parâmetro para o método dispatch($mensagem).
+        $this->messenger->dispatch(new SeriesWasDeleted($series));
+
+        $this->addFlash('success', 'Série removida com sucesso');
+
+        return new RedirectResponse('/series');
+    }
+
+
+    /* ... Resto do código... */
+}
+```
+
+Quinto: vamos mudar no template `index.html.twig` do controlador `series`: ao invés de fornecermos o id (que era o primeiro parâmetro da ação `deleteSeries`, do tipo inteiro), fornecermos a série (que é agora o primeiro parâmetro do tipo `Series` na ação `deleteSeries`):
+```HTML
+<form method="post" action="{{ path('app_delete_series', {series: series.id}) }}">
+    <input type="hidden" name="_method" value="DELETE">
+
+    <button class="btn btn-sm btn-danger">
+        X
+    </button>
+</form>
+```
+Perceba que na função `path()` podemos fornecer para o parâmetro `series` tanto o valor inteiro `series.id` quanto o objeto `series` inteiro. A ação `deleteSeries` vai conseguir processar de acordo.
