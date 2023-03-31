@@ -1239,3 +1239,160 @@ composer require --dev doctrine/doctrine-fixtures-bundle
 ```
 ## Desenvolvendo testes de aplicação
 Os testes de aplicação extendem da classe `WebTestCase`, que cria um cliente HTTP que gera requisições e retornam as respostas que serão testadas.
+
+# Data fixtures
+Instale o `DAMADoctrineTestBundle`. O arquivo de configuração `config\packages\test\dama_doctrine_test_bundle.yaml` será criado após a instalação:
+
+```
+composer require --dev dama/doctrine-test-bundle
+
+Info from https://repo.packagist.org: #StandWithUkraine
+Using version ^7.2 for dama/doctrine-test-bundle
+./composer.json has been updated
+Running composer update dama/doctrine-test-bundle
+Loading composer repositories with package information
+Updating dependencies
+Lock file operations: 1 install, 0 updates, 0 removals
+  - Locking dama/doctrine-test-bundle (v7.2.1)
+Writing lock file
+Installing dependencies from lock file (including require-dev)
+Package operations: 1 install, 0 updates, 0 removals
+  - Downloading dama/doctrine-test-bundle (v7.2.1)
+  - Installing dama/doctrine-test-bundle (v7.2.1): Extracting archive
+Generating optimized autoload files
+109 packages you are using are looking for funding.
+Use the `composer fund` command to find out more!
+
+Symfony operations: 1 recipe (0f3e9d6615e376cf84953a826de53647)
+  -  WARNING  dama/doctrine-test-bundle (>=4.0): From github.com/symfony/recipes-contrib:main
+    The recipe for this package comes from the "contrib" repository, which is open to community contributions. 
+    Review the recipe at https://github.com/symfony/recipes-contrib/tree/main/dama/doctrine-test-bundle/4.0    
+
+    Do you want to execute this recipe?
+    [y] Yes
+    [n] No
+    [a] Yes for all packages, only for the current installation session
+    [p] Yes permanently, never ask again for this project
+    (defaults to n): y
+  - Configuring dama/doctrine-test-bundle (>=4.0): From github.com/symfony/recipes-contrib:main
+Executing script cache:clear [OK]
+Executing script assets:install public [OK]
+
+ What's next? 
+
+
+Some files have been created and/or updated to configure your new packages.
+Please review, edit and commit them: these files are yours.
+```
+
+Modifique o arquivo `phpunit.xml.dist`:
+```XML
+<phpunit>
+    <!-- Resto do código -->
+
+    <extensions>
+        <extension class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
+    </extensions>
+   
+</phpunit>
+```
+
+A instalação de data fixtures do Doctrine pode ser feita com ou sem o Symfony Flex. 
+
+Com o Symfony Flex:
+
+```
+composer require --dev orm-fixtures
+```
+Sem o Symfony Flex:
+```
+composer require --dev doctrine/doctrine-fixtures-bundle
+```
+
+Terminada a instalação, o arquivo `src/DataFixtures/Appfixtures.php` será criado. Depois de instalar o bundle de data fixtures do Doctrine, crie a fixture de usuário com o comando:
+
+```
+php .\bin\console make:fixture
+
+
+ The class name of the fixtures to create (e.g. AppFixtures):
+ > UserFixtures
+
+ created: src/DataFixtures/UserFixtures.php
+
+ 
+  Success! 
+ 
+
+ Next: Open your new fixtures class and start customizing it.
+ Load your fixtures by running: php .\bin\console doctrine:fixtures:load
+ Docs: https://symfony.com/doc/current/bundles/DoctrineFixturesBundle/index.html
+ ```
+
+Criada a fixture, complete o seu código com a lógica de criação do objeto falso (data fixture):
+```PHP
+<?php
+
+namespace App\DataFixtures;
+
+use App\Entity\User;
+use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Persistence\ObjectManager;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
+class UserFixtures extends Fixture
+{
+    public function __construct(
+        private UserPasswordHasherInterface $hasher
+    ) {}
+
+    public function load(ObjectManager $manager): void
+    {
+        $user = new User();
+        $user->setEmail('tma@cdtn.br');
+        
+        $password = $this->hasher->hashPassword($user, 'thiago');
+        $user->setPassword($password);
+        
+        $manager->persist($user);
+        $manager->flush();
+    }
+}
+```
+## Configurações do banco de dados de teste
+
+Altere as variáveis de **ambiente de teste** no arquivo `.env.test`
+```conf
+# Resto do código
+DATABASE_URL="sqlite:///%kernel.project_dir%/var/test.db"
+# Impedir o envio de e-mails no ambiente de testes:
+MAILER_DSN=null://null 
+```
+
+Crie o banco de dados **no ambiente de teste**:
+```
+php .\bin\console --env=test doctrine:schema:create
+```
+
+Esvazie o banco de dados e recarregue todas as classes de fixtures com o comando **no ambiente de teste**:
+```
+php .\bin\console --env=test doctrine:fixtures:load
+
+ Careful, database "" will be purged. Do you want to continue? (yes/no) [no]:
+ > yes
+
+   > purging database
+   > loading App\DataFixtures\AppFixtures
+   > loading App\DataFixtures\UserFixtures
+```
+
+Teste a atualização do banco de dados **de teste** usando o ambiente **de teste**:
+```
+php .\bin\console --env=test doctrine:query:sql "SELECT * FROM user"
+
+ ---- ------------- ------- --------------------------------------------------------------
+  id   email         roles   password
+ ---- ------------- ------- --------------------------------------------------------------
+  1    tma@cdtn.br   []      $2y$04$GTaW349Z9wwbjNrBMqg2lOHfFU.T1f0KnScwTpjXoR9r/RTYEjpG2
+ ---- ------------- ------- --------------------------------------------------------------
+```
