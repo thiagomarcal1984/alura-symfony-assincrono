@@ -1207,3 +1207,35 @@ Quinto: vamos mudar no template `index.html.twig` do controlador `series`: ao in
 </form>
 ```
 Perceba que na função `path()` podemos fornecer para o parâmetro `series` tanto o valor inteiro `series.id` quanto o objeto `series` inteiro. A ação `deleteSeries` vai conseguir processar de acordo.
+
+# Tipos de testes
+O arquivo `tests\bootstrap.php` inicializa o ambiente de testes. Já o arquivo `phpunit.xml.dist` (na raiz do projeto) contém as configurações do PHPUnit, inclusive o diretório a partir do qual serão procurados os testes automatizados para execução.
+
+Comando para rodar testes com o Symfony/PHPUnit:
+```
+php .\bin\phpunit
+```
+
+Se você estivesse usando a versão mínima do Symfony, você precisaria instalar o pacote de testes no Symfony, por meio do comando:
+```
+composer require --dev symfony/test-pack
+```
+Classificação dos testes:
+1. Testes unitários (Unit Tests): testa unidades individuais de código (classes ou arquivos, por exemplo);
+2. Testes de integração (Integrations Tests): testam a combinação de algumas unidades de código.
+3. Testes de aplicação (Application Tests): testam o comportamento completo da aplicação. Neles se fazem requisições HTTP (reais ou simuladas) e verificam se a resposta é a esperada.
+
+## Desenvolvendo testes de integração
+Os testes de integração extendem da classe `KernelTestCase`, que permitem acesso a variáveis de ambiente e inicalização do kernel do Symfony.
+
+Existe um bundle que isola as transações associadas aos testes, de maneira que o banco de dados não seja modificado durante os testes: o `DAMADoctrineTestBundle`, que pode ser instalado por meio do comando:
+
+```
+composer require --dev dama/doctrine-test-bundle
+```
+Também podemos usar um bundle que gera `data fixtures`, dados iniciais que serão usados apenas no ambiente de testes.
+```
+composer require --dev doctrine/doctrine-fixtures-bundle
+```
+## Desenvolvendo testes de aplicação
+Os testes de aplicação extendem da classe `WebTestCase`, que cria um cliente HTTP que gera requisições e retornam as respostas que serão testadas.
