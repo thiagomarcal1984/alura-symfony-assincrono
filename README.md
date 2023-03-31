@@ -1396,3 +1396,277 @@ php .\bin\console --env=test doctrine:query:sql "SELECT * FROM user"
   1    tma@cdtn.br   []      $2y$04$GTaW349Z9wwbjNrBMqg2lOHfFU.T1f0KnScwTpjXoR9r/RTYEjpG2
  ---- ------------- ------- --------------------------------------------------------------
 ```
+# Testes específicos
+
+Os testes tem três fases: 
+1. `arrange` (inicializar o teste),
+2. `act` (simular a mudança de estado do sistema), e
+3. `assert` (verificar se o teste passou ou não).
+
+## Teste unitário
+Crie o teste unitário `tests/Entity/SeasonTest.php` via linha de comando (repare no uso da classe `TestCase` e no aninhamento do namespace da classe `SeasonTest` em `Entity`):
+```
+php .\bin\console make:test
+
+ Which test type would you like?:
+  [TestCase       ] basic PHPUnit tests
+  [KernelTestCase ] basic tests that have access to Symfony services
+  [WebTestCase    ] to run browser-like scenarios, but that don't execute JavaScript code
+  [ApiTestCase    ] to run API-oriented scenarios
+  [PantherTestCase] to run e2e scenarios, using a real-browser or HTTP client and a real web server
+ > TestCase
+
+
+Choose a class name for your test, like:
+ * UtilTest (to create tests/UtilTest.php)
+ * Service\UtilTest (to create tests/Service/UtilTest.php)
+ * \App\Tests\Service\UtilTest (to create tests/Service/UtilTest.php)
+
+ The name of the test class (e.g. BlogPostTest):
+ > Entity\SeasonTest
+
+ created: tests/Entity/SeasonTest.php
+
+ 
+  Success! 
+ 
+
+ Next: Open your new test class and start customizing it.
+ Find the documentation at https://symfony.com/doc/current/testing.html#unit-tests
+```
+
+Escreva o teste:
+```php
+<?php
+
+namespace App\Tests\Entity;
+
+use App\Entity\Episode;
+use App\Entity\Season;
+use PHPUnit\Framework\TestCase;
+
+class SeasonTest extends TestCase
+{
+    public function testGetWatchedEpisodes(): void
+    {
+        // Arrange
+        $season = new Season(1);
+
+        $episode1 = new Episode(1);
+        $episode1->setWatched(true);
+
+        $episode2 = new Episode(2);
+        $episode2->setWatched(false);
+
+        $season->addEpisode($episode1);
+        $season->addEpisode($episode2);
+
+        // Act
+        $watchedEpisodes = $season->getWatchedEpisodes();
+
+        // Assert
+        // Só tem um episódio assistido...
+        self::assertCount(1, $watchedEpisodes); 
+        // ... e o episódio assistido é o primeiro.
+        self::assertSame($episode1, $watchedEpisodes->first());
+    }
+}
+```
+Rode o teste:
+```
+php .\bin\phpunit
+PHPUnit 9.5.22 #StandWithUkraine
+
+Testing
+.                                                                   1 / 1 (100%)
+
+Time: 00:00.343, Memory: 10.00 MB
+
+OK (1 test, 2 assertions)
+```
+
+## Teste de integração
+Crie o teste de integração `tests/Entity/SeasonTest.php` via linha de comando (repare no uso da classe `KernelTestCase` e no aninhamento do namespace da classe `SeriesRepositoryTest` em `Repository`):
+```
+php .\bin\console make:test
+
+ Which test type would you like?:
+  [TestCase       ] basic PHPUnit tests
+  [KernelTestCase ] basic tests that have access to Symfony services
+  [WebTestCase    ] to run browser-like scenarios, but that don't execute JavaScript code
+  [ApiTestCase    ] to run API-oriented scenarios
+  [PantherTestCase] to run e2e scenarios, using a real-browser or HTTP client and a real web server
+ > KernelTestCase
+
+
+Choose a class name for your test, like:
+ * UtilTest (to create tests/UtilTest.php)
+ * Service\UtilTest (to create tests/Service/UtilTest.php)
+ * \App\Tests\Service\UtilTest (to create tests/Service/UtilTest.php)
+
+ The name of the test class (e.g. BlogPostTest):
+ > Repository\SeriesRepositoryTest
+
+ created: tests/Repository/SeriesRepositoryTest.php
+
+ 
+  Success! 
+ 
+
+ Next: Open your new test class and start customizing it.
+ Find the documentation at https://symfony.com/doc/current/testing/database.html#functional-testing-of-a-doctrine-repository
+```
+
+Defina o teste em `SeriesRepositoryTest.php`:
+```php
+<?php
+
+namespace App\Tests\Repository;
+
+use App\DTO\SeriesCreationInputDTO;
+use App\Repository\EpisodeRepository;
+use App\Repository\SeriesRepository;
+use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+
+class SeriesRepositoryTest extends KernelTestCase
+{
+    public function testSomething(): void
+    {
+        // Arrange
+        $kernel = self::bootKernel();
+
+        $container = static::getContainer();
+        $seriesRepository = $container->get(SeriesRepository::class);
+        $episodeRepository = $container->get(EpisodeRepository::class);
+
+        // Act
+        // O método addDto não existia no curso. 
+        $seriesRepository->addDto(new SeriesCreationInputDTO(
+            'Series test',
+            2, 
+            5,
+        ));
+
+        $episodes = $episodeRepository->findAll();
+
+        // Assert
+        $this->assertSame('test', $kernel->getEnvironment());
+        self::assertCount(10, $episodes);
+    }
+}
+```
+Rode o teste de integração:
+```
+php .\bin\phpunit
+
+PHPUnit 9.5.22 #StandWithUkraine
+
+Testing
+
+Time: 00:00.265, Memory: 26.00 MB
+
+OK (2 tests, 4 assertions)
+
+Remaining indirect deprecation notices (1)
+
+  1x: The "Monolog\Logger" class is considered final. It may change without further notice as of its next major version. You should not extend it from "Symfony\Bridge\Monolog\Logger".
+    1x in SeriesRepositoryTest::testSomething from App\Tests\Repository
+```
+
+## Teste de aplicação
+Crie o teste de integração `tests/E2E/AddButtonTest.php` via linha de comando (repare no uso da classe `WebTestCase` e no aninhamento do namespace da classe `SeriesRepositorAddButtonTest` em `E2E`):
+```
+php .\bin\console make:test
+
+ Which test type would you like?:
+  [TestCase       ] basic PHPUnit tests
+  [KernelTestCase ] basic tests that have access to Symfony services
+  [WebTestCase    ] to run browser-like scenarios, but that don't execute JavaScript code
+  [ApiTestCase    ] to run API-oriented scenarios
+  [PantherTestCase] to run e2e scenarios, using a real-browser or HTTP client and a real web server
+ > WebTestCase
+
+
+Choose a class name for your test, like:
+ * UtilTest (to create tests/UtilTest.php)
+ * Service\UtilTest (to create tests/Service/UtilTest.php)
+ * \App\Tests\Service\UtilTest (to create tests/Service/UtilTest.php)
+
+ The name of the test class (e.g. BlogPostTest):
+ > E2E\AddButtonTest
+
+ created: tests/E2E/AddButtonTest.php
+
+ 
+  Success! 
+ 
+
+ Next: Open your new test class and start customizing it.
+ Find the documentation at https://symfony.com/doc/current/testing.html#functional-tests
+```
+
+Defina o teste em `AddButtonTest.php`:
+```php
+<?php
+
+namespace App\Tests\E2E;
+
+use App\Repository\UserRepository;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+
+class AddButtonTest extends WebTestCase
+{
+    public function testAddButtonDoesNotExistWhenUserIsNotLoggedIn(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/series');
+
+        $this->assertResponseIsSuccessful();
+        // $this->assertSelectorTextContains('h1', 'Hello World');
+
+        // Testa se o botão que aplica as classes a seguir NÃO existe.
+        $this->assertSelectorNotExists('.btn.btn-dark.mb-3');
+    }
+
+    public function testAddButtonExistsWhenUserIsLoggedIn(): void
+    {
+        // arrange
+        $client = static::createClient();
+        $container = static::getContainer();
+        $userRepository = $container->get(UserRepository::class);
+        $user = $userRepository->findOneBy(['email' => 'tma@cdtn.br']);
+        
+        // act
+        $client->loginUser($user);
+        $crawler = $client->request('GET', '/series');
+        
+        // assert
+        $this->assertResponseIsSuccessful();
+        // Testa se o botão que aplica as classes a seguir existe.
+        $this->assertSelectorExists('.btn.btn-dark.mb-3');
+    }
+}
+```
+
+Rode o teste de aplicação:
+```
+PS D:\alura\symfony-assincrono> php .\bin\phpunit
+PHPUnit 9.5.22 #StandWithUkraine
+
+Testing 
+....                                                                4 / 4 (100%)
+
+Time: 00:00.655, Memory: 32.00 MB
+
+OK (4 tests, 8 assertions)
+
+Remaining indirect deprecation notices (1)
+
+  1x: The "Monolog\Logger" class is considered final. It may change without further notice as of its next major version. You should not extend it from "Symfony\Bridge\Monolog\Logger".
+    1x in AddButtonTest::testAddButtonDoesNotExistWhenUserIsNotLoggedIn from App\Tests\E2E
+```
+
+## Outros testcases do Symfony
+Há ainda no Symfony os testes `ApiTestCase` (que permite testar o código de retorno e o conteúdo JSON de uma API) e `PantherTestCase` (quer permite o controle sobre o navegador real ao invés do cliente HTTP do Symfony, e que permite fazer requisições Ajax).
+
+Para os vários componentes do Symfony (Messaging, Mailer, etc.) é possível ver algumas traits que permitem fazer alguns asserts no contexto delas (verificar se uma mensagem foi enfileirada, se um e-mail foi enviado um determinado número de vezes etc.).

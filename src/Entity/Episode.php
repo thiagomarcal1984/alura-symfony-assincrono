@@ -25,6 +25,7 @@ class Episode
         #[ORM\Column(type: 'smallint')]
         private int $number
     ) {
+        $this->watched = false;
     }
 
     public function getId(): ?int

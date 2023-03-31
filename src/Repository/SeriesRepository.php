@@ -2,6 +2,9 @@
 
 namespace App\Repository;
 
+use App\DTO\SeriesCreationInputDTO;
+use App\Entity\Episode;
+use App\Entity\Season;
 use App\Entity\Series;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -21,6 +24,24 @@ class SeriesRepository extends ServiceEntityRepository
         parent::__construct($registry, Series::class);
     }
 
+    public function addDto(SeriesCreationInputDTO $dto): Series
+    {
+        $series = new Series($dto->seriesName);
+        for ($i = 1; $i <= $dto->seasonsQuantity; $i++) {
+            $season = new Season($i);
+            for ($j = 1; $j <= $dto->episodesPerSeason; $j++) {
+                $season->addEpisode(new Episode($j));
+            }
+            $series->addSeason($season);
+        }
+
+        $series->setCoverImagePath($dto->coverImage);
+
+        $this->add($series, true);
+
+        return $series;
+    }
+    
     public function add(Series $entity, bool $flush = false): void
     {
         $this->getEntityManager()->persist($entity);

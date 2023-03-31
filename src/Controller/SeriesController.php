@@ -60,7 +60,7 @@ class SeriesController extends AbstractController
         }
 
         /** @var UploadedFile $uploadedCoverImage */
-        $uploadedCoverImage = $seriesForm->get('coverImage')->getData();
+        $uploadedCoverImage = $input->coverImage;
         if ($uploadedCoverImage) {
             $originalFilename = pathinfo( // Função nativa do PHP.
                 // Busca nome original...
@@ -81,27 +81,18 @@ class SeriesController extends AbstractController
                 
             // Resultado: arquivo-641775c4977c7.jpg
             $input->coverImage = $newFilename;
+
+            $uploadedCoverImage->move(
+                // Diretório de destino. Parâmetro obtido do
+                // arquivo config/services.yaml
+                $this->getParameter('cover_image_directory'), 
+                // Nome do arquivo de destino. 
+                // Se omitido, o nome original é passado como 2o parm.
+                $newFilename, 
+            );
         }
 
-        $uploadedCoverImage->move(
-            // Diretório de destino. Parâmetro obtido do
-            // arquivo config/services.yaml
-            $this->getParameter('cover_image_directory'), 
-            // Nome do arquivo de destino. 
-            // Se omitido, o nome original é passado como 2o parm.
-            $newFilename, 
-        );
-        $series = new Series($input->seriesName);
-        for ($i = 1; $i <= $input->seasonsQuantity; $i++) {
-            $season = new Season($i);
-            for ($j = 1; $j <= $input->episodesPerSeason; $j++) {
-                $season->addEpisode(new Episode($j));
-            }
-            $series->addSeason($season);
-        }
-
-        $series->setCoverImagePath($newFilename);
-        $this->seriesRepository->add($series, true);
+        $series = $this->seriesRepository->addDto($input);
 
         // O messenger procura os handlers para as mensagens enviadas
         // como parâmetro para o método dispatch($mensagem).
